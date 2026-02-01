@@ -1,0 +1,2 @@
+CONFIG_NAME = "config.yaml"
+LOBBY_ID_LENGTH = 8
