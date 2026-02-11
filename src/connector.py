@@ -27,11 +27,11 @@ class ServerWrapper:
         self.log = getLogger("APP")
         
 
-    def createLobby(self):
+    def createLobby(self) -> Lobby:
         lobbyId = generate_str(LOBBY_ID_LENGTH)
         lobby = Lobby(lobbyId)
         self.lobbies[lobbyId] = lobby
-        return ( lobbyId, lobby )
+        return lobby
 
     async def connectToLobby(self, webSocket: WebSocket):
         await webSocket.accept()
@@ -94,21 +94,23 @@ class ServerWrapper:
     async def handle_request(self, user: WebSocket, request: Dict):
         type = request["type"]
         if type == "create_lobby":
-            lobbyResponse = self.createLobby()
-            lobby = lobbyResponse.lobby
-            lobby_id = lobbyResponse.lobbyId
+            lobby = self.createLobby()
+            lobby_id = lobby.get_lobby_id()
             await user.send_json(convert_message("lobby", lobby_id))
             lobby.add_client(user)
             self.connections.add(tuple(user, lobby_id))
             return
         if type == "connect_lobby":
             id = request["id"]
+            if not id:
+                await user.send_json(convert_message("err", "Id parameter is not provided!"))
+                return
             lobby = self.lobbies[id]
             if not lobby:
                 await user.send_json(convert_message("err", f"Lobby with id {id} not found!"))
                 return
             lobby.add_client(user)
-            self.connections.add(tuple(user, id))
+            self.connections[user] = id
             for lobbyUser in lobby.iterator():
                 await lobbyUser.send_json(convert_message("connection", user.client.host))
             return
