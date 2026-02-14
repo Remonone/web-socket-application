@@ -73,11 +73,11 @@ class ServerWrapper:
                 return
             msg=f"{device_id}|{nonce}|{ts}"
             auth = sign(secret, msg)
-            print(auth)
             if not compare_entries(auth, signature):
                 print("Incorrect signature details.")
                 await webSocket.close(code=1008)
                 return
+            await webSocket.send_json({"type": "auth_ok"})
             while webSocket.client_state == WebSocketState.CONNECTED:
                 request = await webSocket.receive_json()
                 await self.handle_request(webSocket, request)
@@ -98,7 +98,8 @@ class ServerWrapper:
             lobby_id = lobby.get_lobby_id()
             await user.send_json(convert_message("lobby", lobby_id))
             lobby.add_client(user)
-            self.connections.add(tuple(user, lobby_id))
+            self.connections[user] = lobby_id
+            print("Lobby created")
             return
         if type == "connect_lobby":
             id = request["id"]
@@ -111,6 +112,7 @@ class ServerWrapper:
                 return
             lobby.add_client(user)
             self.connections[user] = id
+            print("Lobby connected")
             for lobbyUser in lobby.iterator():
                 await lobbyUser.send_json(convert_message("connection", user.client.host))
             return
